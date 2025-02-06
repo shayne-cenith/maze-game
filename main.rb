@@ -22,8 +22,9 @@ class GridWorld
 			neighbors = find_neighbors(current)
 			neighbors.each do |neighbor|
 				if GridPath.should_move(current, neighbor)
+					old_paths = neighbor.paths
 					GridPath.move(current, neighbor)
-					@frontier.add(neighbor)
+					@frontier.add(neighbor) if neighbor.paths != old_paths
 				end
 			end
 		end
@@ -81,7 +82,7 @@ class GridPath
 		@history = history
 	end
 
-	def is_same_or_better(other)
+	def is_strictly_better(other)
 		@health >= other.health && @moves >= other.moves && (@health > other.health || @moves > other.moves)
 	end
 
@@ -103,16 +104,17 @@ class GridPath
 		from.paths.any? do |path|
 			new_path = path.dup.navigate(to)
 			next false unless new_path.valid?
-			to.paths.empty? || !to.paths.any? { |old_path| old_path.is_same_or_better(new_path) }
+			to.paths.empty? || !to.paths.any? { |existing_path| existing_path.is_strictly_better(new_path) }
 		end
 	end
 
 	def self.move(from, to)
 		new_paths = from.paths.map { |path| path.navigate(to) }.select(&:valid?)
-		existing_paths = to.paths.reject { |old_path| new_paths.any? { |new_path| new_path.is_same_or_better(old_path) } }
-		new_paths_to_add = new_paths.reject { |new_path| existing_paths.any? { |existing| existing.is_same_or_better(new_path) } }
+		existing_paths = to.paths.reject { |old_path| new_paths.any? { |new_path| new_path.is_strictly_better(old_path) } }
+		new_paths_to_add = new_paths.reject { |new_path| existing_paths.any? { |existing| existing.is_strictly_better(new_path) } }
 		
-		to.paths = existing_paths + new_paths_to_add
+		all_paths = (existing_paths + new_paths_to_add).uniq { |path| path.history.map(&:to_s) }
+		to.paths = all_paths
 	end
 end
 
