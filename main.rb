@@ -32,10 +32,10 @@ class GridWorld
 	private
 
 	def find_start()
-		@grid.each_with_index do |row, y|
-			if row[0].type == 'Start'
-				return @grid[y][0]
-			end
+		@grid.each_with_index do |row, r|
+		  row.each_with_index do |space, c|
+			return space if space.type == 'Start'
+		  end
 		end
 		raise 'Start not found'
 	end
@@ -45,14 +45,26 @@ class GridWorld
 		return @neighbor_cache[current] if @neighbor_cache[current]
 	
 		neighbors = []
-		left = @grid.dig(current.x - 1, current.y)
-		neighbors.concat([left]) if left
-		right = @grid.dig(current.x + 1, current.y)
-		neighbors.concat([right]) if right
-		up = @grid.dig(current.x, current.y - 1) 
-		neighbors.concat([up]) if up
-		down = @grid.dig(current.x, current.y + 1)
-		neighbors.concat([down]) if down
+
+		if current.c > 0
+			left = @grid[current.r][current.c - 1]
+			neighbors.concat([left])
+		end
+		
+		if current.c < @grid[0].length - 1
+			right = @grid[current.r][current.c + 1]
+			neighbors.concat([right])
+		end
+		
+		if current.r > 0
+			up = @grid[current.r - 1][current.c]
+			neighbors.concat([up])
+		end
+		
+		if current.r < @grid.length - 1
+			down = @grid[current.r + 1][current.c]
+			neighbors.concat([down])
+		end
 	
 		@neighbor_cache[current] = neighbors
 		neighbors
@@ -126,17 +138,17 @@ EFFECTS = {
 
 
 class GridSpace
-	attr_reader :type, :display, :health_effect, :moves_effect, :x, :y
+	attr_reader :type, :display, :health_effect, :moves_effect, :r, :c
 	attr_accessor :paths, :visits
 
-	def initialize(char, x, y)
+	def initialize(char, r, c)
 		effect = EFFECTS[char]
 		@type = effect[:type]
-			@display = char
+		@display = char
 		@health_effect = effect[:health]
 		@moves_effect = effect[:moves]
-		@x = x
-		@y = y
+		@r = r
+		@c = c
 		@visits = 0
 
 		if @type == 'Start'
@@ -147,28 +159,28 @@ class GridSpace
 	end
 
 	def to_s
-		"#{@display} (#{@x}, #{@y}) [#{@visits}v, #{@paths.count}p]"
+		"#{@display} (#{@r}, #{@c}) [#{@visits}v, #{@paths.count}p]"
 	end
 
 	def hash
-		@x.hash ^ @y.hash
+		@r.hash ^ @c.hash
 	end
 end
 
 
+# Returns an array of arrays, where each inner array represents a row of the grid.
 def read_char_grid(filename)
-	char_grid = []
-		File.readlines(filename).each do |line|
-			next if line.strip.empty?
-			char_grid << line.strip.chars
-		end
-		char_grid
+	File.readlines(filename)
+		.map(&:strip)
+		.reject(&:empty?)
+		.map { |line| line.split('').select { |c| EFFECTS.key?(c) } }
 end
 
 def convert_to_grid_spaces(char_grid)
-	char_grid.map.with_index do |row, x|
-		row.map.with_index { |char, y| GridSpace.new(char, x, y) }
+	grid = char_grid.map.with_index do |row, r|
+	  row.map.with_index { |char, c| GridSpace.new(char, r, c) }
 	end
+	grid
 end
 
 def convert_to_grid_world(char_grid)
