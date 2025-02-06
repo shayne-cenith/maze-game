@@ -114,7 +114,10 @@ class GridPath
 		new_paths_to_add = new_paths.reject { |new_path| existing_paths.any? { |existing| existing.is_strictly_better(new_path) } }
 		
 		all_paths = (existing_paths + new_paths_to_add).uniq { |path| path.history.map(&:to_s) }
-		to.paths = all_paths
+		grouped_paths = all_paths.group_by { |path| [path.health, path.moves] }
+		optimized_paths = grouped_paths.values.map { |paths| paths.min_by { |path| path.history.length } }
+		
+		to.paths = optimized_paths
 	end
 end
 
