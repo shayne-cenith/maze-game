@@ -33,9 +33,9 @@ class GridWorld
 
 	def find_start()
 		@grid.each_with_index do |row, r|
-		  row.each_with_index do |space, c|
-			return space if space.type == 'Start'
-		  end
+			row.each_with_index do |space, c|
+				return space if space.type == 'Start'
+			end
 		end
 		raise 'Start not found'
 	end
@@ -178,7 +178,7 @@ end
 
 def convert_to_grid_spaces(char_grid)
 	grid = char_grid.map.with_index do |row, r|
-	  row.map.with_index { |char, c| GridSpace.new(char, r, c) }
+		row.map.with_index { |char, c| GridSpace.new(char, r, c) }
 	end
 	grid
 end
@@ -187,8 +187,26 @@ def convert_to_grid_world(char_grid)
 	GridWorld.new(convert_to_grid_spaces(char_grid))
 end
 
+def print_path_visualization(grid, path, output)
+	visualization = grid.map do |row|
+		row.map { |space| space.display }
+	end
+	
+	# Mark path with asterisks (except A and B)
+	path.history.each do |space|
+		if space.display != 'A' && space.display != 'B'
+			visualization[space.r][space.c] = '*'
+		end
+	end
+	
+	visualization.each do |row|
+		output.puts row.join(' ')
+	end
+end
+
 
 filename = ARGV[0]
+output_filename = "#{filename}.result"
 char_grid = read_char_grid(filename)
 grid_world = convert_to_grid_world(char_grid)
 
@@ -198,13 +216,21 @@ puts "Solving..."
 grid_world.solve
 puts "Done!"
 
-grid_world.grid.filter { |row| row.any? { |space| space.type == 'End' } }.each do |row|
-	row.each do |space|
-		if space.type == 'End'
-			puts "All paths to End:"
-			space.paths.each_with_index do |path, i|
-				puts "Path #{i + 1}: Health=#{path.health}, Moves=#{path.moves}, History=[#{path.history.join(' -> ')}]"
+File.open(output_filename, 'w') do |file|
+	grid_world.grid.filter { |row| row.any? { |space| space.type == 'End' } }.each do |row|
+		row.each do |space|
+			if space.type == 'End'
+				space.paths.each_with_index do |path, i|
+					# Write to both console and file
+					[file, $stdout].each do |output|
+						output.puts "\nPath #{i + 1}: Health=#{path.health}, Moves=#{path.moves}"
+						output.puts "Path visualization:"
+						print_path_visualization(grid_world.grid, path, output)
+						output.puts "-" * 20
+					end
+				end
 			end
 		end
 	end
 end
+puts "Results written to #{output_filename}"
