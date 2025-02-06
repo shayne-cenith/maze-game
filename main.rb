@@ -12,20 +12,22 @@ class GridWorld
 	end
 
 	def solve
-    until @frontier.empty?
-      current = @frontier.first
+		until @frontier.empty?
+			current = @frontier.first
+			current.visits += 1
 			puts "Current: #{current}"
-      @frontier.delete(current)
+			@frontier.delete(current)
+			puts "Frontier: #{@frontier.count}"
 
-      neighbors = find_neighbors(current)
-      neighbors.each do |neighbor|
-        if GridPath.should_move(current, neighbor)
-          GridPath.move(current, neighbor)
-          @frontier.add(neighbor)
-        end
-      end
-    end
-  end
+			neighbors = find_neighbors(current)
+			neighbors.each do |neighbor|
+				if GridPath.should_move(current, neighbor)
+				GridPath.move(current, neighbor)
+				@frontier.add(neighbor)
+				end
+			end
+		end
+	end
 
 	private
 
@@ -68,19 +70,19 @@ class GridPath
 	end
 
 	def is_strictly_better(other)
-    @health >= other.health && @moves >= other.moves &&
+		@health >= other.health && @moves >= other.moves &&
 			(@health > other.health || @moves > other.moves)
-  end
+	end
 
 	def valid?
 		@health > 0 && @moves > 0
 	end
 
 	def navigate(neighbor)
-    new_health = @health + neighbor.health_effect
-    new_moves = @moves + neighbor.moves_effect
-    GridPath.new(new_health, new_moves, @history + [neighbor])
-  end
+		new_health = @health + neighbor.health_effect
+		new_moves = @moves + neighbor.moves_effect
+		GridPath.new(new_health, new_moves, @history + [neighbor])
+	end
 
 	def to_s
 		"Path: Health=#{@health}, Moves=#{@moves}, History=[#{@history.join(' -> ')}]"
@@ -90,7 +92,7 @@ class GridPath
 		from.paths.any? do |path|
 			new_path = path.dup.navigate(to)
 			next false unless new_path.valid?
-			to.paths.empty? || !to.paths.any? { |old_path| old_path.is_strictly_better(new_path) }
+			to.paths.empty? || to.paths.any? { |old_path| new_path.is_strictly_better(old_path) }
 		end
 	end
 
@@ -99,45 +101,58 @@ class GridPath
 		existing_paths = to.paths.reject { |old_path| new_paths.any? { |new_path| new_path.is_strictly_better(old_path) } }
 		new_paths_to_add = new_paths.reject { |new_path| existing_paths.any? { |existing| existing.is_strictly_better(new_path) } }
 		
-		all_paths = (existing_paths + new_paths_to_add).uniq { |path| path.history.map(&:to_s) }
-		to.paths = all_paths
+		all_paths = (existing_paths + new_paths_to_add)
+		grouped_paths = all_paths.group_by { |path| [path.health, path.moves] }
+		
+		# For each group of equivalent (health, moves), keep only the path with shortest history
+		optimal_paths = grouped_paths.values.map do |paths|
+			paths.min_by { |path| path.history.length }
+		end
+		
+		to.paths = optimal_paths
 	end
 end
 
 
+EFFECTS = {
+	'A' => { type: 'Start', health: 0, moves: 0 },
+	'B' => { type: 'End', health: 0, moves: 0 },
+
+	'E' => { type: 'Blank', health: 0, moves: -1 },
+	'S' => { type: 'Speeder', health: -5, moves: 0 },
+	'L' => { type: 'Lava', health: -50, moves: -10 },
+	'M' => { type: 'Mud', health: -10, moves: -5 }
+}
+
+
 class GridSpace
-  EFFECTS = {
-    'A' => { type: 'Start', health: 0, moves: 0 },
-    'B' => { type: 'End', health: 0, moves: 0 },
+	attr_reader :type, :display, :health_effect, :moves_effect, :x, :y
+	attr_accessor :paths, :visits
 
-    'E' => { type: 'Blank', health: 0, moves: -1 },
-    'S' => { type: 'Speeder', health: -5, moves: 0 },
-    'L' => { type: 'Lava', health: -50, moves: -10 },
-    'M' => { type: 'Mud', health: -10, moves: -5 }
-  }
-
-  attr_reader :type, :display, :health_effect, :moves_effect, :x, :y
-	attr_accessor :paths
-
-  def initialize(char, x, y)
-    effect = EFFECTS[char]
-    @type = effect[:type]
-		@display = char
-    @health_effect = effect[:health]
-    @moves_effect = effect[:moves]
+	def initialize(char, x, y)
+		effect = EFFECTS[char]
+		@type = effect[:type]
+			@display = char
+		@health_effect = effect[:health]
+		@moves_effect = effect[:moves]
 		@x = x
 		@y = y
+		@visits = 0
 
 		if @type == 'Start'
 			@paths = [GridPath.new(STARTING_HEALTH, MAX_MOVES, [self])]
 		else
 			@paths = [GridPath.new]
 		end
-  end
+	end
 
-  def to_s
-    "#{@display} (#{@x}, #{@y})"
-  end
+	def to_s
+		"#{@display} (#{@x}, #{@y}) [#{@visits}v, #{@paths.count}p]"
+	end
+
+	def hash
+		@x.hash ^ @y.hash
+	end
 end
 
 
@@ -151,9 +166,9 @@ def read_char_grid(filename)
 end
 
 def convert_to_grid_spaces(char_grid)
-  char_grid.map.with_index do |row, x|
-    row.map.with_index { |char, y| GridSpace.new(char, x, y) }
-  end
+	char_grid.map.with_index do |row, x|
+		row.map.with_index { |char, y| GridSpace.new(char, x, y) }
+	end
 end
 
 def convert_to_grid_world(char_grid)
