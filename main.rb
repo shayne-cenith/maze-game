@@ -31,7 +31,7 @@ class GridWorld
 	end
 
 	private
-	
+
 	def find_start()
 		@grid.each_with_index do |row, r|
 			return row[0] if row[0].type == 'Start'
@@ -42,29 +42,26 @@ class GridWorld
 	def find_neighbors(current)
 		@neighbor_cache ||= {}
 		return @neighbor_cache[current] if @neighbor_cache[current]
-	
+		
 		neighbors = []
 
 		if current.c > 0
 			left = @grid[current.r][current.c - 1]
 			neighbors.concat([left])
 		end
-		
 		if current.c < @grid[0].length - 1
 			right = @grid[current.r][current.c + 1]
 			neighbors.concat([right])
 		end
-		
 		if current.r > 0
 			up = @grid[current.r - 1][current.c]
 			neighbors.concat([up])
 		end
-		
 		if current.r < @grid.length - 1
 			down = @grid[current.r + 1][current.c]
 			neighbors.concat([down])
 		end
-	
+		
 		@neighbor_cache[current] = neighbors
 		neighbors
 	end
@@ -154,10 +151,6 @@ class GridSpace
 
 	def to_s
 		"#{@display} (#{@r}, #{@c}) [#{@visits}v, #{@paths.count}p]"
-	end
-
-	def hash
-		@r.hash ^ @c.hash
 	end
 end
 
