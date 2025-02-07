@@ -31,12 +31,10 @@ class GridWorld
 	end
 
 	private
-
+	
 	def find_start()
 		@grid.each_with_index do |row, r|
-			row.each_with_index do |space, c|
-				return space if space.type == 'Start'
-			end
+			return row[0] if row[0].type == 'Start'
 		end
 		raise 'Start not found'
 	end
