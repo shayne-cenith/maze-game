@@ -145,7 +145,7 @@ class GridSpace
 		if @type == 'Start'
 			@paths = [GridPath.new(STARTING_HEALTH, MAX_MOVES, [self])]
 		else
-			@paths = [GridPath.new]
+			@paths = []
 		end
 	end
 
@@ -204,20 +204,21 @@ grid_world.solve
 puts "Done!"
 
 File.open(output_filename, 'w') do |file|
-	grid_world.grid.filter { |row| row.any? { |space| space.type == 'End' } }.each do |row|
-		row.each do |space|
-			if space.type == 'End'
-				space.paths.each_with_index do |path, i|
-					# Write to both console and file
-					[file, $stdout].each do |output|
-						output.puts "\nPath #{i + 1}: Health=#{path.health}, Moves=#{path.moves}"
-						output.puts "Path visualization:"
-						print_path_visualization(grid_world.grid, path, output)
-						output.puts "-" * 20
-					end
-				end
-			end
+	end_space = grid_world.grid.flatten.find { |space| space.type == 'End' }
+	
+	[file, $stdout].each do |output|
+		if end_space.paths.empty?
+			output.puts "*** No valid path found. ***"
+			next
+		end
+	
+		end_space.paths.each_with_index do |path, i|
+			output.puts "\nPath #{i + 1}: Health=#{path.health}, Moves=#{path.moves}"
+			output.puts "Path visualization:"
+			print_path_visualization(grid_world.grid, path, output)
+			output.puts "-" * 20
 		end
 	end
 end
+
 puts "Results written to #{output_filename}"
