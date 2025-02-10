@@ -147,7 +147,7 @@ class GridSpace
 		if @type == 'Start'
 			@paths = [GridPath.new(STARTING_HEALTH, MAX_MOVES, [self])]
 		else
-			@paths = [GridPath.new]
+			@paths = []
 		end
 	end
 
@@ -222,20 +222,16 @@ post '/solve' do
 		grid_world.solve
 		
 		# Collect results
+		# TODO: Return different status if no paths found?
 		results = []
-		grid_world.grid.each do |row|
-		row.each do |space|
-			if space.type == 'End'
-			space.paths.each do |path|
-				results << {
+		end_space = grid_world.grid.flatten.find { |space| space.type == 'End' }
+		end_space.paths.each do |path|
+			results << {
 				health: path.health,
 				moves: path.moves,
 				path: path.history.map { |s| { r: s.r, c: s.c, type: s.type } },
 				visualization: generate_visualization(grid_world.grid, path)
-				}
-			end
-			end
-		end
+			}
 		end
 		
 		results.to_json
