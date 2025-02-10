@@ -1,4 +1,6 @@
 require 'set'
+require 'sinatra'
+require 'json'
 
 STARTING_HEALTH = 200
 MAX_MOVES = 450
@@ -174,50 +176,77 @@ def convert_to_grid_world(char_grid)
 	GridWorld.new(convert_to_grid_spaces(char_grid))
 end
 
-def print_path_visualization(grid, path, output)
+def generate_visualization(grid, path)
 	visualization = grid.map do |row|
 		row.map { |space| space.display }
 	end
 	
-	# Mark path with asterisks (except A and B)
 	path.history.each do |space|
 		if space.display != 'A' && space.display != 'B'
-			visualization[space.r][space.c] = '*'
+		visualization[space.r][space.c] = '*'
 		end
 	end
 	
-	visualization.each do |row|
-		output.puts row.join(' ')
-	end
+	visualization.map { |row| row.join('') }
 end
 
 
-filename = ARGV[0]
-output_filename = "#{filename}.result"
-char_grid = read_char_grid(filename)
-grid_world = convert_to_grid_world(char_grid)
+get '/' do
+	content_type :text
+	<<~EXAMPLE
+	  Example POST request:
+	  
+	  curl -X POST \\
+		-H "Content-Type: application/json" \\
+		-d '{"grid":"ASS\\nELB\\nEEE"}' \\
+		http://localhost:3000/solve
+	EXAMPLE
+end
 
-puts "Grid contents:"
-grid_world.grid.each { |row| puts row.join(' ') }
-puts "Solving..."
-grid_world.solve
-puts "Done!"
-
-File.open(output_filename, 'w') do |file|
-	grid_world.grid.filter { |row| row.any? { |space| space.type == 'End' } }.each do |row|
+post '/solve' do
+	content_type :json
+	
+	begin
+		# Parse the grid from request body
+		request_payload = JSON.parse(request.body.read)
+		grid_string = request_payload['grid']
+		
+		# Convert input string to char grid
+		char_grid = grid_string.split("\n")
+		.map(&:strip)
+		.reject(&:empty?)
+		.map { |line| line.split('').select { |c| EFFECTS.key?(c) } }
+		
+		# Create and solve grid world
+		grid_world = convert_to_grid_world(char_grid)
+		grid_world.solve
+		
+		# Collect results
+		results = []
+		grid_world.grid.each do |row|
 		row.each do |space|
 			if space.type == 'End'
-				space.paths.each_with_index do |path, i|
-					# Write to both console and file
-					[file, $stdout].each do |output|
-						output.puts "\nPath #{i + 1}: Health=#{path.health}, Moves=#{path.moves}"
-						output.puts "Path visualization:"
-						print_path_visualization(grid_world.grid, path, output)
-						output.puts "-" * 20
-					end
-				end
+			space.paths.each do |path|
+				results << {
+				health: path.health,
+				moves: path.moves,
+				path: path.history.map { |s| { r: s.r, c: s.c, type: s.type } },
+				visualization: generate_visualization(grid_world.grid, path)
+				}
+			end
 			end
 		end
+		end
+		
+		results.to_json
+	rescue => e
+		status 400
+		{ error: e.message }.to_json
 	end
 end
-puts "Results written to #{output_filename}"
+
+
+if __FILE__ == $0
+	set :port, ENV['PORT'] || 3000
+	set :bind, '0.0.0.0'
+end
