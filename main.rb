@@ -2,6 +2,25 @@ require 'set'
 require 'sinatra'
 require 'json'
 
+set :bind, '0.0.0.0'
+
+# CORS configuration
+configure do
+  enable :cross_origin
+end
+
+before do
+  response.headers['Access-Control-Allow-Origin'] = 'http://localhost:5173'
+  response.headers['Access-Control-Allow-Methods'] = 'POST, OPTIONS'
+  response.headers['Access-Control-Allow-Headers'] = 'Content-Type'
+end
+
+# Handle preflight OPTIONS request
+options '*' do
+  response.headers['Allow'] = 'POST, OPTIONS'
+  200
+end
+
 STARTING_HEALTH = 200
 MAX_MOVES = 450
 
@@ -147,7 +166,7 @@ class GridSpace
 		if @type == 'Start'
 			@paths = [GridPath.new(STARTING_HEALTH, MAX_MOVES, [self])]
 		else
-			@paths = [GridPath.new]
+			@paths = []
 		end
 	end
 
@@ -223,19 +242,14 @@ post '/solve' do
 		
 		# Collect results
 		results = []
-		grid_world.grid.each do |row|
-		row.each do |space|
-			if space.type == 'End'
-			space.paths.each do |path|
-				results << {
+		end_space = grid_world.grid.flatten.find { |space| space.type == 'End' }
+		end_space.paths.each do |path|
+			results << {
 				health: path.health,
 				moves: path.moves,
 				path: path.history.map { |s| { r: s.r, c: s.c, type: s.type } },
 				visualization: generate_visualization(grid_world.grid, path)
-				}
-			end
-			end
-		end
+			}
 		end
 		
 		results.to_json
