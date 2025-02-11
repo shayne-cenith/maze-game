@@ -230,6 +230,10 @@ post '/solve' do
 		request_payload = JSON.parse(request.body.read)
 		grid_string = request_payload['grid']
 		
+		# Override defaults if provided
+		STARTING_HEALTH = request_payload['health'] if request_payload['health']
+		MAX_MOVES = request_payload['moves'] if request_payload['moves']
+		
 		# Convert input string to char grid
 		char_grid = grid_string.split("\n")
 		.map(&:strip)
