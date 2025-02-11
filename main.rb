@@ -35,10 +35,7 @@ class GridWorld
 	private
 
 	def find_start()
-		@grid.each_with_index do |row, r|
-			return row[0] if row[0].type == 'Start'
-		end
-		raise 'Start not found'
+		@grid.flatten.find { |space| space.type == 'Start' }
 	end
 
 	def find_neighbors(current)
