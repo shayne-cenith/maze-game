@@ -4,7 +4,7 @@ This solution to the maze game problem does not use A* or other graph search alg
 
 Instead, it uses BFS to expand the frontier from the start node, and each node as it is processed keeps a list of all paths to it such that none are _strictly worse_ than any paths it has. If a visited node path is updated, it is again added back into the fronteir for re-processing. This way, when you reach the end, you have the list of all paths from A to B where none is _strictly worse_.
 
-The definition of _strictly worse_ is if it is equal to or worse along either metric. Code definition just uses the inverse:
+The definition of _strictly worse_ is defined in code as the logical inverse:
 
 ```rb
 def is_strictly_better(other)
